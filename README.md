@@ -64,6 +64,7 @@ For the real thing, follow the walkthrough below.
 A command reference, once you are set up:
 
 ```bash
+tatkal setup                         # interactive first-time setup wizard
 tatkal add-passenger NAME AGE M|F [--berth LOWER]
 tatkal passengers
 tatkal add-journey --from NDLS --to BCT --date 2026-11-12 --class 3A
@@ -101,6 +102,33 @@ Optional `departure` is used only as a tie-breaker. Availability values such
 as `AVAILABLE`, `RAC`, `WAITLIST`, and `CLOSED` are recognised. The sample
 file is illustrative only; replace it with current results you personally
 checked. Never rely on this ranking instead of the live official booking page.
+
+## Automatic setup wizard
+
+For a guided setup, run just:
+
+```bash
+tatkal setup
+```
+
+The wizard asks for passenger details, lets you add multiple people, lets you
+select saved passengers by ID, then asks for the route, travel date, class and
+optional train. It saves everything to the local JSON store and prints the
+new journey ID and each selected passenger ID. You do not need to construct
+commands manually. Run `tatkal setup` again whenever you want to add another
+journey or passenger group; existing passenger records remain available.
+
+Every passenger gets their own unique ID, and every journey gets a separate
+unique ID. IDs are generated locally when records are created. Older records
+without IDs are assigned IDs automatically when the store is next opened.
+Use `tatkal passengers` and `tatkal journeys` to see the IDs. A journey links
+to the selected passenger IDs, so two people with similar names are still
+distinct records. IDs are local record identifiers, not IRCTC IDs or identity
+numbers.
+
+The wizard intentionally asks only for the ID document *type*, never an
+Aadhaar/PAN number, password, OTP or payment credential. Enter those only in
+the official railway app/site when required.
 
 ## Step-by-step: your first tatkal booking
 
@@ -226,7 +254,7 @@ and run `pkg install termux-api`, which gives the tool `termux-notification` and
 |---|---|
 | Tatkal window | Correct open time for any date and class: 10:00 IST for AC (1A/2A/3A/3E/CC/EC/EA), 11:00 IST for non-AC (SL/2S), one day before the journey date |
 | Reminder plan | T-120, T-30, T-10, T-2 and T-0 nudges, each with the one thing to do at that moment |
-| Master list | Local passenger store with validation, so names and ages are settled before the window opens |
+| Master list | Local passenger store with a separate unique ID for every passenger; the interactive `tatkal setup` wizard collects details and links selected IDs to each journey |
 | Readiness checklist | Checks what it can against the store (passengers saved, window confirmed) and lists what only you can confirm (ID proof, wallet/UPI, signed in, backup connection) |
 | Co-pilot pacing | A live T-0 countdown plus a pre-decided click order with a target second for each step, timed as you go, so nothing is a decision inside the window |
 | Local dashboard | `tatkal-dashboard` serves a loopback-only page over the same JSON store: journeys, their windows, passenger entry and the checklist |
