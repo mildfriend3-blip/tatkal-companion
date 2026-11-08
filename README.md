@@ -12,18 +12,6 @@ terms of service and Indian Railways rules, and bot-driven tatkal booking has le
 to arrests under the IT Act. Anything claiming to do it in "20 seconds" is either
 breaking those rules or lying about the speed.
 
-## What it actually does
-
-| Capability | Detail |
-|---|---|
-| Tatkal window | Correct open time for any date and class: 10:00 IST for AC (1A/2A/3A/3E/CC/EC/EA), 11:00 IST for non-AC (SL/2S), one day before the journey date |
-| Reminder plan | T-120, T-30, T-10, T-2 and T-0 nudges, each with the one thing to do at that moment |
-| Master list | Local passenger store with validation, so names and ages are settled before the window opens |
-| Readiness checklist | Checks what it can against the store (passengers saved, window confirmed) and lists what only you can confirm (ID proof, wallet/UPI, signed in, backup connection) |
-| Co-pilot pacing | A live T-0 countdown plus a pre-decided click order with a target second for each step, timed as you go, so nothing is a decision inside the window |
-| PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
-| Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
-
 ## Install
 
 ```bash
@@ -41,23 +29,148 @@ python demo.py
 
 ## Quick start
 
-```bash
-python demo.py                      # full tour on throwaway data, no setup
+No setup at all, just watch it work:
 
-python -m tatkal.cli add-passenger "Asha Rao" 34 F --berth LOWER
-python -m tatkal.cli add-journey --from NDLS --to BCT --date 2026-11-09 --class 3A \
-    --train "12951 Mumbai Rajdhani" --passenger "Asha Rao"
-python -m tatkal.cli journeys
-python -m tatkal.cli window --date 2026-11-09 --class 3A
-python -m tatkal.cli plan <journey-id>
-python -m tatkal.cli checklist <journey-id>
-python -m tatkal.cli upcoming --within 180
-python -m tatkal.cli track 2718281828
-python -m tatkal.cli copilot <journey-id> --dry-run
-python -m tatkal.cli copilot <journey-id> --payment upi --now 2026-11-08T09:58:00
+```bash
+python demo.py                      # full tour on throwaway data
 ```
 
-Or with the module form: `python -m tatkal.cli --store data/tatkal.json ...`
+For the real thing, follow the walkthrough below.
+
+A command reference, once you are set up:
+
+```bash
+tatkal add-passenger NAME AGE M|F [--berth LOWER]
+tatkal passengers
+tatkal add-journey --from NDLS --to BCT --date 2026-11-12 --class 3A
+tatkal journeys
+tatkal window --date 2026-11-12 --class 3A
+tatkal plan <journey-id>
+tatkal checklist <journey-id>
+tatkal copilot <journey-id> --dry-run
+tatkal copilot <journey-id> --payment wallet
+tatkal upcoming --within 180
+tatkal track <10-digit-pnr>
+```
+
+## Step-by-step: your first tatkal booking
+
+Copy these in order. Every step shows the command and what you should see.
+
+### 1. Save the people you travel with
+
+```bash
+tatkal add-passenger "YOUR NAME" 24 M --berth LOWER
+tatkal add-passenger "SECOND PERSON" 22 F --berth UPPER
+```
+
+Each one prints `saved passenger ...`. This is your master list, so you never type
+names inside the booking window.
+
+```bash
+tatkal passengers
+```
+
+### 2. Track the journey you want
+
+```bash
+tatkal add-journey --from NDLS --to BCT --date 2026-11-12 --class 3A \
+  --train "12951 Mumbai Rajdhani" --passenger "YOUR NAME"
+```
+
+`--date` is the **travel date**, not the booking date. The command returns a
+journey id of eight characters, for example `a6349c51`. Every command below uses
+that id, so swap in your own.
+
+```bash
+tatkal journeys
+```
+
+### 3. Check when the window opens
+
+```bash
+tatkal window --date 2026-11-12 --class 3A
+```
+
+AC classes open at 10:00 IST and non-AC (SL, 2S) at 11:00 IST, one day before the
+journey. The reminder ladder comes with it.
+
+### 4. Read the reminder plan
+
+```bash
+tatkal plan a6349c51
+```
+
+### 5. Run the readiness check the night before
+
+```bash
+tatkal checklist a6349c51
+```
+
+`[x]` is checked and clear, `[ ]` is still open, `[~]` is something only you can
+confirm (ID proof, wallet or UPI, being signed in).
+
+### 6. Rehearse the click order
+
+```bash
+tatkal copilot a6349c51 --dry-run
+```
+
+Nothing is timed in a dry run. Do it two or three times so the order is muscle
+memory before the real window.
+
+### 7. Book, with the co-pilot pacing you
+
+Be on the official IRCTC app or site a minute before the window, signed in, with
+the wallet funded or the UPI app already open. Then:
+
+```bash
+tatkal copilot a6349c51 --payment wallet    # or: --payment upi
+```
+
+It counts down to T-0, then prints each step with the second it should be done by.
+Press Enter after each step and it tells you whether you are ahead, on time, or
+behind.
+
+### 8. Track the ticket afterwards
+
+```bash
+tatkal track 2718281828
+```
+
+This uses the offline demo provider, so the data is sample data. Wire a permitted
+data source into `OfficialAPIProvider` for live lookups.
+
+### Where the data lives
+
+Everything sits in one JSON file, `data/tatkal.json`, in the directory you run from.
+Keep it elsewhere with the global `--store` flag, which goes **before** the
+subcommand:
+
+```bash
+tatkal --store ~/tatkal.json passengers
+tatkal --store ~/tatkal.json add-passenger "YOUR NAME" 24 M
+```
+
+`data/` is in `.gitignore`, so `git add .` never commits your passenger list.
+
+### On Android (Termux)
+
+The steps above are identical. One difference: Termux has no `notify-send`, so the
+T-10 and T-2 alerts fall back to a terminal bell. Installing from the release tag
+works exactly as shown above.
+
+## What it actually does
+
+| Capability | Detail |
+|---|---|
+| Tatkal window | Correct open time for any date and class: 10:00 IST for AC (1A/2A/3A/3E/CC/EC/EA), 11:00 IST for non-AC (SL/2S), one day before the journey date |
+| Reminder plan | T-120, T-30, T-10, T-2 and T-0 nudges, each with the one thing to do at that moment |
+| Master list | Local passenger store with validation, so names and ages are settled before the window opens |
+| Readiness checklist | Checks what it can against the store (passengers saved, window confirmed) and lists what only you can confirm (ID proof, wallet/UPI, signed in, backup connection) |
+| Co-pilot pacing | A live T-0 countdown plus a pre-decided click order with a target second for each step, timed as you go, so nothing is a decision inside the window |
+| PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
+| Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
 
 ## Layout
 
@@ -124,3 +237,4 @@ Natural next steps for a final-year project: a Telegram or WhatsApp bot in front
 of `assistant.py`, a calendar feed that emits the reminder plan as `.ics`, a
 small web dashboard over the JSON store, or chart-preparation polling for a
 tracked PNR once a permitted provider is wired in.
+
