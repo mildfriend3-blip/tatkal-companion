@@ -17,11 +17,11 @@ from .copilot import (
     wait_until,
 )
 from .models import IST, BookingWindow, Passenger, Reminder, class_group
-from .pnr import DemoPNRProvider, PNRStatus, OfficialAPIProvider
+from .pnr import DemoPNRProvider, HttpPNRProvider, PNRStatus, OfficialAPIProvider
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "IRCTC_SEARCH_URL",
@@ -29,6 +29,7 @@ __all__ = [
     "BookingWindow",
     "ChecklistItem",
     "DemoPNRProvider",
+    "HttpPNRProvider",
     "OfficialAPIProvider",
     "PNRStatus",
     "Passenger",

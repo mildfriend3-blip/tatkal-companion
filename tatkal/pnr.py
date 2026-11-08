@@ -7,6 +7,8 @@ Wire a permitted data source into `OfficialAPIProvider` to go live.
 
 from __future__ import annotations
 
+import json
+import urllib.request
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -91,4 +93,79 @@ class OfficialAPIProvider:
         raise NotImplementedError(
             "Connect an authorised PNR data source here. "
             "This project ships without one on purpose."
+        )
+
+
+class HttpPNRProvider:
+    """Adapter for a third-party PNR API you hold a key for.
+
+    Not official railway data. Vendor APIs aggregate public sources and can lag,
+    so confirm anything that matters on IRCTC or RailOne.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        timeout: float = 10.0,
+        fetch_json=None,
+    ) -> None:
+        if not base_url:
+            raise ValueError("base_url is required")
+        if not api_key:
+            raise ValueError("api_key is required")
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.timeout = timeout
+        self._fetch_json = fetch_json or self._http_json
+
+    def _http_json(self, url: str, headers: dict) -> dict:
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def fetch(self, pnr: str) -> PNRStatus:
+        code = pnr.strip()
+        if not (code.isdigit() and len(code) == 10):
+            raise ValueError("a PNR is 10 digits")
+        payload = self._fetch_json(
+            f"{self.base_url}/pnr/{code}",
+            {"x-api-key": self.api_key, "accept": "application/json"},
+        )
+        return self._parse(code, payload)
+
+    @staticmethod
+    def _parse(code: str, payload: dict) -> PNRStatus:
+        if not isinstance(payload, dict):
+            raise ValueError("unexpected response from the PNR provider")
+        if payload.get("success") is False:
+            error = payload.get("error") or {}
+            message = error.get("message") if isinstance(error, dict) else None
+            raise ValueError(str(message or "the PNR provider returned an error"))
+
+        body = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        train = body.get("train") or {}
+        chart = body.get("chart") or {}
+        chart_status = str(chart.get("status") or "").lower()
+
+        passengers = []
+        for index, item in enumerate(body.get("passengers") or [], start=1):
+            current = item.get("current") or {}
+            booking = item.get("booking") or {}
+            passengers.append(
+                {
+                    "index": index,
+                    "status": str(current.get("status") or booking.get("status") or "UNKNOWN"),
+                    "berth": str(current.get("details") or booking.get("details") or "-"),
+                }
+            )
+
+        return PNRStatus(
+            pnr=code,
+            train_number=str(train.get("number") or "-"),
+            train_name=str(train.get("name") or "unknown train"),
+            chart_prepared=("prepared" in chart_status and "not" not in chart_status),
+            platform=str(body.get("platform") or "-"),
+            delay_minutes=int(body.get("delayMinutes") or 0),
+            passengers=tuple(passengers),
         )
