@@ -205,9 +205,33 @@ and run `pkg install termux-api`, which gives the tool `termux-notification` and
 | Master list | Local passenger store with validation, so names and ages are settled before the window opens |
 | Readiness checklist | Checks what it can against the store (passengers saved, window confirmed) and lists what only you can confirm (ID proof, wallet/UPI, signed in, backup connection) |
 | Co-pilot pacing | A live T-0 countdown plus a pre-decided click order with a target second for each step, timed as you go, so nothing is a decision inside the window |
+| Local dashboard | `tatkal-dashboard` serves a loopback-only page over the same JSON store: journeys, their windows, passenger entry and the checklist |
 | Calendar export | `tatkal ics` writes the whole reminder ladder as an `.ics` file with alarms, so your phone calendar nudges you even if the terminal is closed |
 | PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
 | Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
+
+## Local dashboard
+
+If you would rather not live in a terminal, there is a loopback-only dashboard.
+It runs on `127.0.0.1`, reads and writes the same JSON store, and never logs in,
+drives a booking page, submits a booking or pays.
+
+```bash
+python -m tatkal.dashboard --port 8765
+```
+
+Or, after `pip install .`, use the console script:
+
+```bash
+tatkal-dashboard --port 8765
+```
+
+It prints the URL and opens your browser. On Windows PowerShell the same commands
+work; if the browser does not open, paste the printed `http://127.0.0.1:8765/`
+into it yourself. On Termux, run it and open the URL on the same phone.
+
+What you can do there: see every tracked journey with its tatkal window, add a
+passenger, add a journey, and read the readiness checklist per journey.
 
 ## Troubleshooting
 
@@ -263,9 +287,10 @@ tatkal/
   pnr.py         PNRProvider protocol, DemoPNRProvider, OfficialAPIProvider slot
   copilot.py     build_script(), pacing_report(), countdown, notify, open_official_site()
   calendar.py    build_calendar(), the reminder plan as an .ics file
+  dashboard.py   loopback-only HTTP dashboard over the same store
   cli.py         argparse entry point
 demo.py          end-to-end tour
-tests/           56 unittest cases
+tests/           65 unittest cases
 ```
 
 ## Tests
