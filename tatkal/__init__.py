@@ -1,5 +1,6 @@
 """Tatkal Travel Companion -- prep, pacing and tracking, not automated booking."""
 
+from .calendar import build_calendar
 from .assistant import ChecklistItem, describe_journey, speed_checklist, upcoming
 from .copilot import (
     IRCTC_SEARCH_URL,
@@ -20,7 +21,7 @@ from .pnr import DemoPNRProvider, PNRStatus, OfficialAPIProvider
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "IRCTC_SEARCH_URL",
@@ -36,6 +37,7 @@ __all__ = [
     "Store",
     "TARGET_TOTAL_SECONDS",
     "alert_schedule",
+    "build_calendar",
     "build_script",
     "class_group",
     "countdown_text",
