@@ -27,6 +27,30 @@ cd tatkal-companion
 python demo.py
 ```
 
+## The one command you actually need
+
+Once a passenger and a journey are saved, this is the whole thing:
+
+```bash
+tatkal go <journey-id> --payment wallet --open
+```
+
+It runs the readiness check, counts down to the window, sends the T-10 / T-2 / T-0
+notifications (Termux on Android, `notify-send` on desktop, terminal bell
+otherwise), opens the official IRCTC page at T-0 with `--open`, then paces you
+through the click order, timing each step.
+
+Rehearse it first with `--now` and `--no-wait`, which skip the real clock:
+
+```bash
+tatkal go <journey-id> --now 2026-11-14T09:58:00
+tatkal go <journey-id> --no-wait
+```
+
+The one thing it cannot do is tap the buttons on the IRCTC app for you. That
+would be automation of a service that forbids it, so the tool stops at telling you
+what to tap, and when.
+
 ## Quick start
 
 No setup at all, just watch it work:
@@ -156,9 +180,9 @@ tatkal --store ~/tatkal.json add-passenger "YOUR NAME" 24 M
 
 ### On Android (Termux)
 
-The steps above are identical. One difference: Termux has no `notify-send`, so the
-T-10 and T-2 alerts fall back to a terminal bell. Installing from the release tag
-works exactly as shown above.
+The steps above are identical. For phone notifications, install the Termux:API app
+and run `pkg install termux-api`, which gives the tool `termux-notification` and
+`termux-open-url`. Without it, alerts fall back to a terminal bell.
 
 ## What it actually does
 
