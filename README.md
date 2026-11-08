@@ -265,7 +265,7 @@ tatkal/
   calendar.py    build_calendar(), the reminder plan as an .ics file
   cli.py         argparse entry point
 demo.py          end-to-end tour
-tests/           50 unittest cases
+tests/           56 unittest cases
 ```
 
 ## Tests
@@ -305,12 +305,38 @@ Disguising a script does not make it permitted, it only moves the risk onto your
 account. The honest levers for speed are preparation (master list, funded wallet,
 saved search, a rehearsed script) and a good network.
 
-## Going live with PNR data
+## Live PNR data (optional, your own key)
 
-`OfficialAPIProvider` is intentionally unimplemented. Put a permitted data source
-there — a railway data partner or an authorised API with a key of your own — and
-return a `PNRStatus`. Do not point it at IRCTC's own endpoints with scraped
-session cookies.
+`tatkal track` uses an offline demo provider by default, so the numbers are sample
+data. For real lookups, point it at a PNR API you hold a key for:
+
+```bash
+export TATKAL_PNR_BASE_URL="https://api.example.in/api/v1"
+export TATKAL_PNR_API_KEY="your_key"
+tatkal track 1234567890 --live
+```
+
+The adapter calls `GET {base_url}/pnr/{pnr}` with an `x-api-key` header and reads
+the `success` / `data` envelope that most Indian Railways aggregator APIs use. If
+yours differs, subclass or adjust `HttpPNRProvider._parse` — it is one function.
+
+### Why there is no "official" provider
+
+Indian Railways does run an official NTES API, but it is issued to authorised
+railway vendors under a `custID` / `custPass` header, and the specification says
+the information is confidential and meant for railway-authorised personnel only.
+There is no public official API for an individual developer.
+
+Third-party APIs that sell keys are aggregators. They work, they are convenient,
+and they are not authoritative — their own documentation tells you to confirm
+anything critical on IRCTC. That is why this tool never treats their output as a
+source of truth, and why `--live` is opt-in.
+
+### What will never be in here
+
+Automated login, seat selection, payment or booking against IRCTC or RailOne. That
+is automation of a service that forbids it, and it is the one thing that would put
+your own account and ID at risk.
 
 ## Extending it
 
