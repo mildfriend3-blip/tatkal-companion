@@ -106,8 +106,19 @@ def countdown_text(target: datetime, now: datetime | None = None) -> str:
     return f"{minutes:02d}m {seconds:02d}s"
 
 
+IRCTC_SEARCH_URL = "https://www.irctc.co.in/nget/train-search"
+
+
 def notify(title: str, message: str) -> bool:
-    """Desktop notification if the machine has one, terminal bell otherwise."""
+    """Phone or desktop notification if the machine has one, bell otherwise."""
+    if shutil.which("termux-notification"):
+        result = subprocess.run(
+            ["termux-notification", "--title", title, "--content", message],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            return True
     if shutil.which("notify-send"):
         result = subprocess.run(
             ["notify-send", title, message], check=False, capture_output=True
@@ -116,6 +127,26 @@ def notify(title: str, message: str) -> bool:
             return True
     print("\a", end="", flush=True)
     return False
+
+
+def open_official_site(url: str = IRCTC_SEARCH_URL) -> bool:
+    """Open the official page in the browser. Nothing is filled in or submitted."""
+    for command in (["termux-open-url", url], ["xdg-open", url], ["open", url]):
+        if shutil.which(command[0]):
+            result = subprocess.run(command, check=False, capture_output=True)
+            if result.returncode == 0:
+                return True
+    return False
+
+
+def alert_schedule(window_opens_at: datetime) -> list[tuple[datetime, str]]:
+    """The pre-window nudges as absolute times, soonest last."""
+    pairs = [
+        (window_opens_at - lead, message)
+        for lead, message in pre_window_alerts(window_opens_at)
+    ]
+    pairs.sort(key=lambda pair: pair[0])
+    return pairs
 
 
 def wait_until(target: datetime, tick_seconds: float = 0.5) -> None:

@@ -2,7 +2,10 @@
 
 from .assistant import ChecklistItem, describe_journey, speed_checklist, upcoming
 from .copilot import (
+    IRCTC_SEARCH_URL,
     TARGET_TOTAL_SECONDS,
+    alert_schedule,
+    open_official_site,
     Step,
     build_script,
     countdown_text,
@@ -17,9 +20,10 @@ from .pnr import DemoPNRProvider, PNRStatus, OfficialAPIProvider
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = [
+    "IRCTC_SEARCH_URL",
     "IST",
     "BookingWindow",
     "ChecklistItem",
@@ -31,11 +35,13 @@ __all__ = [
     "Step",
     "Store",
     "TARGET_TOTAL_SECONDS",
+    "alert_schedule",
     "build_script",
     "class_group",
     "countdown_text",
     "describe_journey",
     "notify",
+    "open_official_site",
     "pacing_report",
     "pre_window_alerts",
     "reminder_plan",
