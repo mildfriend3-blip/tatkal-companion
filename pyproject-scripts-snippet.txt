@@ -1,0 +1,2 @@
+Add under [project.scripts]:
+tatkal-dashboard = "tatkal.dashboard:main"
