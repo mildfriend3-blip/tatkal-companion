@@ -172,6 +172,49 @@ works exactly as shown above.
 | PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
 | Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
 
+## Troubleshooting
+
+### `argument age: invalid int value: 'BHAVSAR'`
+
+The name has a space and was not quoted, so the shell split it into two words and
+the second one landed in the age slot. Quote the whole name:
+
+```bash
+tatkal add-passenger "LOKESH BHAVSAR" 18 M --berth "SIDE LOWER"
+```
+
+`--berth` takes a single value as well, so `SIDE LOWER` needs quotes too.
+
+### `unrecognized arguments: BHAVSAR`
+
+Same cause, on `add-journey`. Quoting always works:
+
+```bash
+tatkal add-journey --from BRC --to JAT --date 2026-11-15 --class 3A \
+  --train "12471 Swaraj Express" --passenger "LOKESH BHAVSAR"
+```
+
+From 0.2.1 `--passenger` also accepts an unquoted multi-word name, so
+`--passenger LOKESH BHAVSAR` is read as one passenger. Quote anyway if you have
+more than one passenger.
+
+### `tatkal--store: command not found`
+
+Missing space. `--store` also needs a value, and it goes before the subcommand:
+
+```bash
+tatkal --store ~/tatkal.json passengers
+```
+
+### `note: not in your master list yet: ...`
+
+You tracked a journey with a name that is not saved. Save it so the readiness
+checklist can check it:
+
+```bash
+tatkal add-passenger "LOKESH BHAVSAR" 18 M
+```
+
 ## Layout
 
 ```
