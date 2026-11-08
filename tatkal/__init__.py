@@ -21,7 +21,7 @@ from .pnr import DemoPNRProvider, HttpPNRProvider, PNRStatus, OfficialAPIProvide
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "IRCTC_SEARCH_URL",
