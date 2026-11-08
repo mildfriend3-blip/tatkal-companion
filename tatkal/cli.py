@@ -113,6 +113,78 @@ def _wait_with_alerts(window, now: datetime, open_site: bool) -> None:
         time.sleep(0.5)
 
 
+
+
+def _ask(prompt: str, default: str | None = None) -> str:
+    suffix = f" [{default}]" if default else ""
+    value = input(f"{prompt}{suffix}: ").strip()
+    return value or (default or "")
+
+
+def _setup_wizard(store: Store) -> int:
+    """Collect passenger and journey details interactively on this device."""
+    print("\nTATKAL COMPANION — QUICK SETUP")
+    print("Details are saved locally in your tatkal.json file.")
+    print("Do not enter Aadhaar/PAN numbers or passwords here.\n")
+    existing = store.passengers()
+    if existing:
+        print("Saved passengers:")
+        for pax in existing:
+            print(f"  {pax['id'][:12]}  {pax['name']} ({pax['age']}{pax['gender']})")
+    add_more = _ask("Add a new passenger now? (y/n)", "n").lower()
+    while add_more in {"y", "yes"}:
+        try:
+            pax = Passenger(
+                name=_ask("Passenger full name"),
+                age=int(_ask("Age")),
+                gender=_ask("Gender (M/F/O)").upper(),
+                berth_preference=_ask("Berth preference", "NO PREFERENCE").upper(),
+                id_type=_ask("ID document type (type only, no number)", "AADHAAR").upper(),
+            )
+            saved = store.add_passenger(pax)
+        except (ValueError, EOFError) as exc:
+            print(f"Could not save passenger: {exc}")
+            return 2
+        print(f"Saved {saved['name']} — passenger ID: {saved['id']}")
+        add_more = _ask("Add another passenger? (y/n)", "n").lower()
+    people = store.passengers()
+    if not people:
+        print("Add at least one passenger first.")
+        return 2
+    print("\nChoose passengers by their ID (comma-separated):")
+    for pax in people:
+        print(f"  {pax['id']}  {pax['name']}")
+    chosen_ids = [part.strip() for part in _ask("Passenger ID(s)").split(",") if part.strip()]
+    chosen = [p for p in people if p["id"] in chosen_ids]
+    if not chosen or len(chosen) != len(set(chosen_ids)):
+        print("One or more passenger IDs were not found.")
+        return 2
+    origin = _ask("From station code").upper()
+    destination = _ask("To station code").upper()
+    try:
+        travel_date = _parse_date(_ask("Journey date (YYYY-MM-DD)"))
+    except argparse.ArgumentTypeError as exc:
+        print(f"Invalid date: {exc}")
+        return 2
+    travel_class = _ask("Travel class (e.g. 3A, 3E, SL)").upper()
+    train = _ask("Train number and name (optional)") or None
+    try:
+        journey = store.add_journey(
+            from_station=origin, to_station=destination,
+            journey_date=travel_date, travel_class=travel_class,
+            train=train, passengers=[p["name"] for p in chosen],
+        )
+    except ValueError as exc:
+        print(f"Could not save journey: {exc}")
+        return 2
+    print("\nSETUP COMPLETE")
+    print(f"Journey ID: {journey['id']}")
+    print("Passengers attached:")
+    for pax in chosen:
+        print(f"  {pax['id']} — {pax['name']}")
+    print(f"Next: tatkal go {journey['id']} --open")
+    return 0
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
         prog="tatkal",
@@ -120,6 +192,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--store", default="data/tatkal.json", help="path to the JSON store")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("setup", help="interactive setup: passengers and journey, with unique IDs")
 
     add_pax = sub.add_parser("add-passenger", help="save a passenger to the master list")
     add_pax.add_argument("name")
@@ -193,6 +267,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     store = Store(args.store)
 
+    if args.command == "setup":
+        return _setup_wizard(store)
+
     if args.command == "add-passenger":
         try:
             record = store.add_passenger(
@@ -214,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         if not names:
             print("no passengers saved yet")
         for pax in names:
-            print(f"  {pax['name']:<24} {pax['age']:>3}{pax['gender']}  {pax['berth_preference']}")
+            print(f"  {pax['id'][:12]}  {pax['name']:<24} {pax['age']:>3}{pax['gender']}  {pax['berth_preference']}")
 
     elif args.command == "add-journey":
         try:
@@ -241,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
         if not journeys:
             print("no journeys tracked yet")
         for journey in journeys:
-            print(describe_journey(journey))
+            print(f"ID: {journey['id']}  |  " + describe_journey(journey))
 
     elif args.command == "window":
         try:
