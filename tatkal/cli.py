@@ -6,8 +6,10 @@ import argparse
 import sys
 import time
 from datetime import date, datetime
+from pathlib import Path
 
 from .assistant import describe_journey, speed_checklist, upcoming
+from .calendar import build_calendar
 from .copilot import (
     TARGET_TOTAL_SECONDS,
     alert_schedule,
@@ -162,6 +164,10 @@ def build_parser() -> argparse.ArgumentParser:
     go.add_argument("--now", help="rehearse against a fixed time")
     go.add_argument("--no-wait", action="store_true", help="do not count down, start the steps now")
 
+    ics = sub.add_parser("ics", help="write the reminder plan as a calendar file")
+    ics.add_argument("--out", default="tatkal-reminders.ics", help="path to write")
+    ics.add_argument("--journey", help="only this journey id (default: all journeys)")
+
     copilot = sub.add_parser("copilot", help="pace yourself through the booking window")
     copilot.add_argument("journey_id")
     copilot.add_argument("--payment", choices=["wallet", "upi"], default="wallet")
@@ -275,6 +281,26 @@ def main(argv: list[str] | None = None) -> int:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         print("\n(demo data - offline sample, not a live railway lookup)")
+
+    elif args.command == "ics":
+        if args.journey:
+            try:
+                journeys = [store.journey(args.journey)]
+            except KeyError as exc:
+                print(f"error: {exc.args[0]}", file=sys.stderr)
+                return 2
+        else:
+            journeys = store.journeys()
+        if not journeys:
+            print("no journeys tracked yet - add one first", file=sys.stderr)
+            return 2
+        text = build_calendar(journeys)
+        out = Path(args.out).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        events = text.count("BEGIN:VEVENT")
+        print(f"wrote {events} reminder event(s) to {out}")
+        print("import that file into your calendar app once - the alarms are already inside")
 
     elif args.command == "go":
         try:
