@@ -24,6 +24,7 @@ from .copilot import (
 )
 from .models import IST, Passenger
 from .pnr import DemoPNRProvider, HttpPNRProvider
+from .ranking import load_candidates, rank_candidates
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
@@ -155,6 +156,11 @@ def build_parser() -> argparse.ArgumentParser:
     up = sub.add_parser("upcoming", help="reminders due in the next N minutes")
     up.add_argument("--within", type=int, default=180)
 
+    rank = sub.add_parser("rank", help="rank trains from an official-results JSON file")
+    rank.add_argument("journey_id")
+    rank.add_argument("--candidates", required=True, help="path to candidate train JSON")
+    rank.add_argument("--max-fare", type=float, help="optional maximum fare in INR")
+
     track = sub.add_parser("track", help="PNR status (demo by default, --live for a keyed API)")
     track.add_argument("pnr")
     track.add_argument(
@@ -279,6 +285,24 @@ def main(argv: list[str] | None = None) -> int:
             print(f"nothing due in the next {args.within} minutes")
         for journey, reminder in pairs:
             print(f"{journey['from']}->{journey['to']} {journey['journey_date']}  {reminder.describe()}")
+
+    elif args.command == "rank":
+        try:
+            journey = store.journey(args.journey_id)
+            candidates = load_candidates(args.candidates)
+            ranked = rank_candidates(journey, candidates, max_fare=args.max_fare)
+        except (KeyError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Train ranking for {journey['from']} -> {journey['to']} ({journey['travel_class']})")
+        print("Source: user-supplied results; verify availability and fare on IRCTC/RailOne.")
+        for item in ranked:
+            budget = " · OVER BUDGET" if item["over_budget"] else ""
+            print(
+                f"#{item['rank']}  {item['train_number']} {item['train_name']}  "
+                f"| {item['availability']} | {item['duration_minutes']} min "
+                f"| ₹{item['fare']:.0f}{budget}"
+            )
 
     elif args.command == "track":
         if args.live:
