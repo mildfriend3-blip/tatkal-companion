@@ -73,6 +73,7 @@ tatkal plan <journey-id>
 tatkal checklist <journey-id>
 tatkal copilot <journey-id> --dry-run
 tatkal copilot <journey-id> --payment wallet
+tatkal ics --out ~/tatkal-reminders.ics
 tatkal upcoming --within 180
 tatkal track <10-digit-pnr>
 ```
@@ -124,6 +125,17 @@ journey. The reminder ladder comes with it.
 ```bash
 tatkal plan a6349c51
 ```
+
+To get those nudges on your phone even when this tool is not running, export them
+to your calendar once:
+
+```bash
+tatkal ics --out ~/tatkal-reminders.ics
+```
+
+Open that file with your calendar app. Every reminder becomes an event with its
+alarm already set, at T-120, T-30, T-10, T-2 and T-0. Add `--journey a6349c51`
+to export a single journey.
 
 ### 5. Run the readiness check the night before
 
@@ -193,6 +205,7 @@ and run `pkg install termux-api`, which gives the tool `termux-notification` and
 | Master list | Local passenger store with validation, so names and ages are settled before the window opens |
 | Readiness checklist | Checks what it can against the store (passengers saved, window confirmed) and lists what only you can confirm (ID proof, wallet/UPI, signed in, backup connection) |
 | Co-pilot pacing | A live T-0 countdown plus a pre-decided click order with a target second for each step, timed as you go, so nothing is a decision inside the window |
+| Calendar export | `tatkal ics` writes the whole reminder ladder as an `.ics` file with alarms, so your phone calendar nudges you even if the terminal is closed |
 | PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
 | Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
 
@@ -248,10 +261,11 @@ tatkal/
   store.py       JSON persistence for passengers and journeys
   assistant.py   speed_checklist(), upcoming(), describe_journey()
   pnr.py         PNRProvider protocol, DemoPNRProvider, OfficialAPIProvider slot
-  copilot.py     build_script(), pacing_report(), countdown, desktop notify, wait_until()
+  copilot.py     build_script(), pacing_report(), countdown, notify, open_official_site()
+  calendar.py    build_calendar(), the reminder plan as an .ics file
   cli.py         argparse entry point
 demo.py          end-to-end tour
-tests/           30 unittest cases
+tests/           50 unittest cases
 ```
 
 ## Tests
