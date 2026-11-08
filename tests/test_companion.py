@@ -8,10 +8,14 @@ import io
 
 from tatkal.assistant import speed_checklist, upcoming
 from tatkal.cli import _flatten_names, _parse_age, main
+from tatkal.cli import build_parser
 from tatkal.copilot import (
     TARGET_TOTAL_SECONDS,
+    alert_schedule,
+    open_official_site,
     build_script,
     countdown_text,
+    notify,
     pacing_report,
     pre_window_alerts,
     verdict,
@@ -305,6 +309,33 @@ class CliQuotingTests(unittest.TestCase):
                       "--date", "2026-11-15", "--class", "3A",
                       "--passenger", "NOBODY SAVED"])
         self.assertIn("not in your master list", out.getvalue())
+
+
+class OneCommandTests(unittest.TestCase):
+    """`tatkal go` is the single command most people will run."""
+
+    def test_alert_schedule_is_sorted_and_ends_at_the_window(self):
+        opens = datetime(2026, 11, 14, 10, 0, tzinfo=IST)
+        schedule = alert_schedule(opens)
+        times = [at for at, _ in schedule]
+        self.assertEqual(times, sorted(times))
+        self.assertEqual(times[-1], opens)
+        self.assertEqual(len(schedule), 3)
+
+    def test_open_official_site_never_raises(self):
+        self.assertIsInstance(open_official_site(), bool)
+
+    def test_notify_never_raises(self):
+        self.assertIsInstance(notify("test", "test"), bool)
+
+    def test_go_command_is_registered_with_its_flags(self):
+        args = build_parser().parse_args(
+            ["go", "abc12345", "--payment", "upi", "--open", "--no-wait"]
+        )
+        self.assertEqual(args.command, "go")
+        self.assertEqual(args.payment, "upi")
+        self.assertTrue(args.open)
+        self.assertTrue(args.no_wait)
 
 
 if __name__ == "__main__":
