@@ -74,6 +74,23 @@ class Store:
         self.save()
         return record
 
+    def update_journey(
+        self,
+        journey_id: str,
+        *,
+        travel_class: str | None = None,
+        train: str | None = None,
+    ) -> dict:
+        """Update the selected train and/or class for a saved journey."""
+        journey = self.journey(journey_id)
+        if travel_class is not None:
+            journey["travel_class"] = travel_class.strip().upper()
+            journey["class_group"] = class_group(journey["travel_class"])
+        if train is not None:
+            journey["train"] = train.strip() or None
+        self.save()
+        return dict(journey)
+
     def journeys(self) -> list[dict]:
         return list(self._data["journeys"])
 
