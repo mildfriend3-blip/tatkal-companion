@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from datetime import date, datetime
@@ -22,7 +23,7 @@ from .copilot import (
     wait_until,
 )
 from .models import IST, Passenger
-from .pnr import DemoPNRProvider
+from .pnr import DemoPNRProvider, HttpPNRProvider
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
@@ -154,8 +155,13 @@ def build_parser() -> argparse.ArgumentParser:
     up = sub.add_parser("upcoming", help="reminders due in the next N minutes")
     up.add_argument("--within", type=int, default=180)
 
-    track = sub.add_parser("track", help="PNR status (demo provider, offline data)")
+    track = sub.add_parser("track", help="PNR status (demo by default, --live for a keyed API)")
     track.add_argument("pnr")
+    track.add_argument(
+        "--live",
+        action="store_true",
+        help="call a third-party PNR API using TATKAL_PNR_BASE_URL and TATKAL_PNR_API_KEY",
+    )
 
     go = sub.add_parser("go", help="one command: check, wait, alert, then pace the window")
     go.add_argument("journey_id")
@@ -275,12 +281,30 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{journey['from']}->{journey['to']} {journey['journey_date']}  {reminder.describe()}")
 
     elif args.command == "track":
-        try:
-            print(DemoPNRProvider().fetch(args.pnr).summary())
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 2
-        print("\n(demo data - offline sample, not a live railway lookup)")
+        if args.live:
+            base_url = os.environ.get("TATKAL_PNR_BASE_URL", "").strip()
+            api_key = os.environ.get("TATKAL_PNR_API_KEY", "").strip()
+            if not base_url or not api_key:
+                print(
+                    "error: set TATKAL_PNR_BASE_URL and TATKAL_PNR_API_KEY first, e.g.\n"
+                    "  export TATKAL_PNR_BASE_URL=https://api.example.in/api/v1\n"
+                    "  export TATKAL_PNR_API_KEY=your_key",
+                    file=sys.stderr,
+                )
+                return 2
+            try:
+                print(HttpPNRProvider(base_url, api_key).fetch(args.pnr).summary())
+            except Exception as exc:  # network, auth and parse failures all land here
+                print(f"error: {exc}", file=sys.stderr)
+                return 1
+            print("\n(third-party data - not official; confirm on IRCTC or RailOne)")
+        else:
+            try:
+                print(DemoPNRProvider().fetch(args.pnr).summary())
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+            print("\n(demo data - offline sample, not a live railway lookup)")
 
     elif args.command == "ics":
         if args.journey:
