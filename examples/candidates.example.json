@@ -1,0 +1,24 @@
+[
+  {
+    "train_number": "12951",
+    "train_name": "Mumbai Rajdhani",
+    "from": "NDLS",
+    "to": "BCT",
+    "travel_class": "3A",
+    "availability": "AVAILABLE",
+    "duration_minutes": 960,
+    "fare": 2450,
+    "departure": "16:55"
+  },
+  {
+    "train_number": "12953",
+    "train_name": "August Kranti Rajdhani",
+    "from": "NDLS",
+    "to": "BCT",
+    "travel_class": "3A",
+    "availability": "RAC",
+    "duration_minutes": 970,
+    "fare": 2380,
+    "departure": "17:15"
+  }
+]
