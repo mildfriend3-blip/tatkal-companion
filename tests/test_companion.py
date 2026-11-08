@@ -7,6 +7,7 @@ import contextlib
 import io
 
 from tatkal.assistant import speed_checklist, upcoming
+from tatkal.calendar import _escape, build_calendar
 from tatkal.cli import _flatten_names, _parse_age, main
 from tatkal.cli import build_parser
 from tatkal.copilot import (
@@ -336,6 +337,53 @@ class OneCommandTests(unittest.TestCase):
         self.assertEqual(args.payment, "upi")
         self.assertTrue(args.open)
         self.assertTrue(args.no_wait)
+
+
+class CalendarTests(unittest.TestCase):
+    def _journey(self, jid="abc12345", travel_class="3A", jdate="2026-11-15"):
+        return {
+            "id": jid, "from": "BRC", "to": "JAT", "journey_date": jdate,
+            "travel_class": travel_class, "class_group": "AC",
+            "train": "12471 Swaraj Express", "passengers": ["LOKESH BHAVSAR"],
+        }
+
+    def test_calendar_wraps_and_has_one_event_per_reminder(self):
+        text = build_calendar([self._journey()])
+        self.assertTrue(text.startswith("BEGIN:VCALENDAR"))
+        self.assertTrue(text.rstrip().endswith("END:VCALENDAR"))
+        self.assertEqual(text.count("BEGIN:VEVENT"), 5)
+        self.assertEqual(text.count("BEGIN:VALARM"), 5)
+
+    def test_times_are_utc(self):
+        # 10:00 IST opens the AC window, which is 04:30 UTC
+        text = build_calendar([self._journey()])
+        self.assertIn("DTSTART:20261114T043000Z", text)
+
+    def test_non_ac_window_is_an_hour_later(self):
+        text = build_calendar([self._journey(travel_class="SL")])
+        self.assertIn("DTSTART:20261114T053000Z", text)
+
+    def test_two_journeys_do_not_share_uids(self):
+        text = build_calendar([self._journey("aaa11111"), self._journey("bbb22222")])
+        self.assertEqual(text.count("BEGIN:VEVENT"), 10)
+        self.assertEqual(len({line for line in text.splitlines() if line.startswith("UID:")}), 10)
+
+    def test_no_line_exceeds_the_ical_limit(self):
+        for line in build_calendar([self._journey()]).splitlines():
+            self.assertLessEqual(len(line), 75, line)
+
+    def test_text_escaping_follows_rfc5545(self):
+        self.assertEqual(_escape("a,b;c\\d"), "a\\,b\\;c\\\\d")
+        self.assertEqual(_escape("line1\nline2"), "line1\\nline2")
+
+    def test_commas_in_a_reminder_message_are_escaped_in_the_output(self):
+        text = build_calendar([self._journey()])
+        self.assertIn("\\,", text)
+
+    def test_empty_journey_list_still_gives_a_valid_calendar(self):
+        text = build_calendar([])
+        self.assertIn("BEGIN:VCALENDAR", text)
+        self.assertNotIn("BEGIN:VEVENT", text)
 
 
 if __name__ == "__main__":
