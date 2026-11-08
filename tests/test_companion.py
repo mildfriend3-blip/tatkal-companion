@@ -22,7 +22,7 @@ from tatkal.copilot import (
     verdict,
 )
 from tatkal.models import IST, Passenger, class_group
-from tatkal.pnr import DemoPNRProvider
+from tatkal.pnr import DemoPNRProvider, HttpPNRProvider
 from tatkal.schedule import reminder_plan, tatkal_window
 from tatkal.store import Store
 
@@ -384,6 +384,77 @@ class CalendarTests(unittest.TestCase):
         text = build_calendar([])
         self.assertIn("BEGIN:VCALENDAR", text)
         self.assertNotIn("BEGIN:VEVENT", text)
+
+
+class LiveProviderTests(unittest.TestCase):
+    """The keyed adapter, exercised against a stub transport (no network)."""
+
+    SAMPLE = {
+        "success": True,
+        "data": {
+            "pnr": "1234567890",
+            "train": {"number": "12471", "name": "SWARAJ EXPRESS"},
+            "chart": {"status": "Chart Not Prepared"},
+            "passengers": [
+                {"booking": {"status": "WL", "details": "WL/12"},
+                 "current": {"status": "CNF", "details": "CNF/B2/31"}},
+                {"booking": {"status": "WL", "details": "WL/13"}},
+            ],
+        },
+    }
+
+    def _provider(self, payload=None):
+        calls = []
+
+        def stub(url, headers):
+            calls.append((url, headers))
+            return payload if payload is not None else self.SAMPLE
+
+        provider = HttpPNRProvider("https://api.example.in/api/v1", "secret-key", fetch_json=stub)
+        return provider, calls
+
+    def test_request_url_and_header(self):
+        provider, calls = self._provider()
+        provider.fetch("1234567890")
+        url, headers = calls[0]
+        self.assertEqual(url, "https://api.example.in/api/v1/pnr/1234567890")
+        self.assertEqual(headers["x-api-key"], "secret-key")
+
+    def test_parses_train_chart_and_passengers(self):
+        status = self._provider()[0].fetch("1234567890")
+        self.assertEqual(status.train_number, "12471")
+        self.assertEqual(status.train_name, "SWARAJ EXPRESS")
+        self.assertFalse(status.chart_prepared)
+        self.assertEqual(len(status.passengers), 2)
+        self.assertEqual(status.passengers[0]["status"], "CNF")
+        self.assertEqual(status.passengers[0]["berth"], "CNF/B2/31")
+        self.assertEqual(status.passengers[1]["status"], "WL")
+
+    def test_prepared_chart_is_detected(self):
+        payload = {"success": True, "data": {
+            "train": {"number": "12471", "name": "SWARAJ EXPRESS"},
+            "chart": {"status": "Chart Prepared"}, "passengers": []}}
+        provider, _ = self._provider(payload)
+        self.assertTrue(provider.fetch("1234567890").chart_prepared)
+
+    def test_error_envelope_raises(self):
+        payload = {"success": False, "error": {"message": "PNR not found"}}
+        provider, _ = self._provider(payload)
+        with self.assertRaises(ValueError) as ctx:
+            provider.fetch("1234567890")
+        self.assertIn("PNR not found", str(ctx.exception))
+
+    def test_short_pnr_rejected_before_any_call(self):
+        provider, calls = self._provider()
+        with self.assertRaises(ValueError):
+            provider.fetch("123")
+        self.assertEqual(calls, [])
+
+    def test_missing_credentials_rejected(self):
+        with self.assertRaises(ValueError):
+            HttpPNRProvider("", "key")
+        with self.assertRaises(ValueError):
+            HttpPNRProvider("https://api.example.in", "")
 
 
 if __name__ == "__main__":
