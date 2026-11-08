@@ -32,8 +32,43 @@ def _parse_date(value: str) -> date:
         ) from exc
 
 
+QUOTING_HINT = (
+    'hint: a name with a space must be quoted, e.g. '
+    'tatkal add-passenger "LOKESH BHAVSAR" 18 M'
+)
+
+
+def _parse_age(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"expected a number, got {value!r}. A name with a space must be quoted: "
+            'tatkal add-passenger "LOKESH BHAVSAR" 18 M'
+        ) from exc
+
+
+def _flatten_names(groups: list[list[str]] | None) -> list[str]:
+    """`--passenger LOKESH BHAVSAR` (unquoted) becomes one name, not two."""
+    names = []
+    for group in groups or []:
+        name = " ".join(part for part in group if part).strip()
+        if name:
+            names.append(name)
+    return names
+
+
+class _Parser(argparse.ArgumentParser):
+    """Adds a quoting hint to the errors that quoting mistakes cause."""
+
+    def error(self, message: str) -> None:
+        if "invalid int value" in message or "unrecognized arguments" in message:
+            print(QUOTING_HINT, file=sys.stderr)
+        super().error(message)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="tatkal",
         description="Tatkal Travel Companion: timings, reminders, readiness and PNR tracking.",
     )
@@ -42,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_pax = sub.add_parser("add-passenger", help="save a passenger to the master list")
     add_pax.add_argument("name")
-    add_pax.add_argument("age", type=int)
+    add_pax.add_argument("age", type=_parse_age)
     add_pax.add_argument("gender", choices=["M", "F", "O"])
     add_pax.add_argument("--berth", default="NO PREFERENCE")
     add_pax.add_argument("--id-type", default="AADHAAR")
@@ -55,7 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_journey.add_argument("--date", dest="journey_date", type=_parse_date, required=True)
     add_journey.add_argument("--class", dest="travel_class", required=True)
     add_journey.add_argument("--train")
-    add_journey.add_argument("--passenger", action="append", default=[])
+    add_journey.add_argument(
+        "--passenger", action="append", nargs="+", default=[], metavar="NAME",
+        help="repeatable; multi-word names work unquoted",
+    )
 
     sub.add_parser("journeys", help="list tracked journeys")
 
@@ -119,12 +157,17 @@ def main(argv: list[str] | None = None) -> int:
                 journey_date=args.journey_date,
                 travel_class=args.travel_class,
                 train=args.train,
-                passengers=args.passenger,
+                passengers=_flatten_names(args.passenger),
             )
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         print(describe_journey(journey))
+        known = {name.lower() for name in store.passenger_names()}
+        unknown = [n for n in journey["passengers"] if n.lower() not in known]
+        if unknown:
+            print(f"\nnote: not in your master list yet: {', '.join(unknown)}")
+            print(f'      save with: tatkal add-passenger "{unknown[0]}" <age> <M|F|O>')
 
     elif args.command == "journeys":
         journeys = store.journeys()

@@ -3,7 +3,11 @@ import unittest
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import contextlib
+import io
+
 from tatkal.assistant import speed_checklist, upcoming
+from tatkal.cli import _flatten_names, _parse_age, main
 from tatkal.copilot import (
     TARGET_TOTAL_SECONDS,
     build_script,
@@ -244,6 +248,63 @@ class CopilotTests(unittest.TestCase):
         leads = [lead for lead, _ in alerts]
         self.assertEqual(leads, sorted(leads, reverse=True))
         self.assertEqual(leads[-1], timedelta(0))
+
+
+class CliQuotingTests(unittest.TestCase):
+    """Names with spaces are the most common first-run mistake."""
+
+    def test_flatten_names_joins_an_unquoted_multiword_name(self):
+        self.assertEqual(_flatten_names([["LOKESH", "BHAVSAR"]]), ["LOKESH BHAVSAR"])
+
+    def test_flatten_names_handles_several_passengers(self):
+        groups = [["LOKESH", "BHAVSAR"], ["ASHA", "RAO"]]
+        self.assertEqual(_flatten_names(groups), ["LOKESH BHAVSAR", "ASHA RAO"])
+
+    def test_flatten_names_ignores_empty_input(self):
+        self.assertEqual(_flatten_names(None), [])
+        self.assertEqual(_flatten_names([]), [])
+
+    def test_parse_age_rejects_words_and_mentions_quoting(self):
+        with self.assertRaises(Exception) as ctx:
+            _parse_age("BHAVSAR")
+        self.assertIn("quoted", str(ctx.exception))
+
+    def test_parse_age_accepts_a_number(self):
+        self.assertEqual(_parse_age("18"), 18)
+
+    def test_cli_saves_a_multiword_name_and_reuses_it_unquoted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store_path = str(Path(tmp) / "t.json")
+            quiet = contextlib.redirect_stdout(io.StringIO())
+            with quiet:
+                self.assertEqual(
+                    main(["--store", store_path, "add-passenger", "LOKESH BHAVSAR", "18", "M",
+                          "--berth", "SIDE LOWER"]), 0,
+                )
+                self.assertEqual(
+                    main(["--store", store_path, "add-journey", "--from", "BRC", "--to", "JAT",
+                          "--date", "2026-11-15", "--class", "3A",
+                          "--passenger", "LOKESH", "BHAVSAR"]), 0,
+                )
+            self.assertEqual(Store(store_path).journeys()[0]["passengers"], ["LOKESH BHAVSAR"])
+
+    def test_cli_hints_about_quoting_when_the_age_slot_gets_a_name(self):
+        err = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                main(["--store", str(Path(tmp) / "t.json"), "add-passenger",
+                      "LOKESH", "BHAVSAR", "M"])
+        self.assertIn("quoted", err.getvalue())
+
+    def test_cli_warns_when_a_journey_names_an_unsaved_passenger(self):
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            store_path = str(Path(tmp) / "t.json")
+            with contextlib.redirect_stdout(out):
+                main(["--store", store_path, "add-journey", "--from", "BRC", "--to", "JAT",
+                      "--date", "2026-11-15", "--class", "3A",
+                      "--passenger", "NOBODY SAVED"])
+        self.assertIn("not in your master list", out.getvalue())
 
 
 if __name__ == "__main__":

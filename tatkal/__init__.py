@@ -17,7 +17,7 @@ from .pnr import DemoPNRProvider, PNRStatus, OfficialAPIProvider
 from .schedule import reminder_plan, tatkal_window
 from .store import Store
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "IST",
