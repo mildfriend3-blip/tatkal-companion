@@ -76,7 +76,31 @@ tatkal copilot <journey-id> --payment wallet
 tatkal ics --out ~/tatkal-reminders.ics
 tatkal upcoming --within 180
 tatkal track <10-digit-pnr>
+tatkal rank <journey-id> --candidates examples/candidates.example.json
 ```
+
+### Compare trains before the Tatkal window
+
+The `rank` command compares candidate trains for a saved route and class.
+It filters out mismatched routes/classes, then prioritises availability status,
+optional budget fit, shorter duration and lower fare. It is an offline ranking
+tool, not a live railway search.
+
+1. Check trains and availability on IRCTC or RailOne yourself.
+2. Copy the results into a JSON file using
+   `examples/candidates.example.json` as the format.
+3. Run:
+
+```bash
+tatkal rank <journey-id> --candidates examples/candidates.example.json --max-fare 2500
+```
+
+Required fields per train: `train_number`, `train_name`, `from`, `to`,
+`travel_class`, `availability`, `duration_minutes`, and `fare`.
+Optional `departure` is used only as a tie-breaker. Availability values such
+as `AVAILABLE`, `RAC`, `WAITLIST`, and `CLOSED` are recognised. The sample
+file is illustrative only; replace it with current results you personally
+checked. Never rely on this ranking instead of the live official booking page.
 
 ## Step-by-step: your first tatkal booking
 
@@ -208,6 +232,7 @@ and run `pkg install termux-api`, which gives the tool `termux-notification` and
 | Local dashboard | `tatkal-dashboard` serves a loopback-only page over the same JSON store: journeys, their windows, passenger entry and the checklist |
 | Calendar export | `tatkal ics` writes the whole reminder ladder as an `.ics` file with alarms, so your phone calendar nudges you even if the terminal is closed |
 | PNR tracking | Provider interface with an offline deterministic demo provider; a slot for a permitted live data source |
+| Train ranking | Offline ranking of user-supplied train results by route, class, availability, budget, duration and fare |
 | Local only | Everything lives in one JSON file. No credentials, no scraping, no network calls |
 
 ## Local dashboard
