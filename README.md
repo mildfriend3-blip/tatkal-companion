@@ -80,6 +80,23 @@ tatkal track <10-digit-pnr>
 tatkal rank <journey-id> --candidates examples/candidates.example.json
 ```
 
+### Prepare the booking handoff
+
+Use this when you are ready to book:
+
+```bash
+tatkal prepare <journey-id> --copy --open
+```
+
+It prints the saved route, journey date, train (if saved), class and passenger
+names in one compact brief. With `--copy`, it copies that brief to your
+clipboard (Termux:API clipboard support is needed on Android). With `--open`,
+it opens the official IRCTC train-search page.
+
+**Important:** the IRCTC page opens blank. This command does not fill fields,
+choose a train, enter passenger details, log in, submit or pay. Enter and verify
+those details yourself on the official railway app/site.
+
 ### Compare trains before the Tatkal window
 
 The `rank` command compares candidate trains for a saved route and class.
