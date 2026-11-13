@@ -182,7 +182,69 @@ def _setup_wizard(store: Store) -> int:
     print("Passengers attached:")
     for pax in chosen:
         print(f"  {pax['id']} — {pax['name']}")
-    print(f"Next: tatkal go {journey['id']} --open")
+    print(f"Next: tatkal prepare {journey['id']} --copy --open")
+    return 0
+
+
+def _copy_to_clipboard(value: str) -> bool:
+    """Copy text using an installed platform clipboard command."""
+    import shutil
+    import subprocess
+
+    for command in (["termux-clipboard-set"], ["clip"], ["pbcopy"],
+                    ["wl-copy"], ["xclip", "-selection", "clipboard"]):
+        if not shutil.which(command[0]):
+            continue
+        try:
+            result = subprocess.run(command, input=value, text=True, check=False,
+                                    capture_output=True)
+            if result.returncode == 0:
+                return True
+        except OSError:
+            pass
+    return False
+
+
+def _prepare_journey(store: Store, journey_id: str, copy_details: bool,
+                     open_site: bool) -> int:
+    """Show a complete local booking brief; never interact with the booking site."""
+    try:
+        journey = store.journey(journey_id)
+    except KeyError as exc:
+        print(f"error: {exc.args[0]}", file=sys.stderr)
+        return 2
+    passengers = journey.get("passengers") or []
+    train = journey.get("train") or "Not specified — choose/verify on IRCTC"
+    lines = [
+        "TATKAL BOOKING PREPARATION",
+        f"Route: {journey['from']} -> {journey['to']}",
+        f"Journey date: {journey['journey_date']}",
+        f"Train: {train}",
+        f"Class: {journey['travel_class']}",
+        f"Passengers ({len(passengers)}):",
+    ]
+    lines.extend([f"  {i}. {name}" for i, name in enumerate(passengers, 1)]
+                 if passengers else ["  None saved"])
+    brief = "\n".join(lines)
+    print("\n" + brief)
+    print("\nBOOKING HANDOFF")
+    print("1. On IRCTC/RailOne, enter the route and journey date shown above.")
+    print("2. Find and verify the train, then select the saved class.")
+    print("3. Enter/verify passenger details, ID proof and preferences.")
+    print("4. Review fare and details yourself before payment.")
+    print("\nIMPORTANT: This tool does NOT fill IRCTC fields, select trains, log in,")
+    print("submit bookings or make payments. The official page opens blank.")
+    if copy_details:
+        if _copy_to_clipboard(brief):
+            print("\nCopied the journey brief to your clipboard.")
+        else:
+            print("\nClipboard command unavailable. On Termux install Termux:API,")
+            print("then run: pkg install termux-api")
+    if open_site:
+        if open_official_site():
+            print("\nOpened the official IRCTC train-search page (not prefilled).")
+        else:
+            print("\nCould not open a browser. Open the official IRCTC app manually.")
     return 0
 
 def build_parser() -> argparse.ArgumentParser:
@@ -194,6 +256,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("setup", help="interactive setup: passengers and journey, with unique IDs")
+
+    prepare = sub.add_parser("prepare", help="show saved booking details and handoff to IRCTC")
+    prepare.add_argument("journey_id")
+    prepare.add_argument("--copy", action="store_true", help="copy journey brief to clipboard")
+    prepare.add_argument("--open", action="store_true", help="open official IRCTC page (not prefilled)")
 
     add_pax = sub.add_parser("add-passenger", help="save a passenger to the master list")
     add_pax.add_argument("name")
@@ -246,7 +313,7 @@ def build_parser() -> argparse.ArgumentParser:
     go = sub.add_parser("go", help="one command: check, wait, alert, then pace the window")
     go.add_argument("journey_id")
     go.add_argument("--payment", choices=["wallet", "upi"], default="wallet")
-    go.add_argument("--open", action="store_true", help="open the official IRCTC page at T-0")
+    go.add_argument("--open", action="store_true", help="open official IRCTC page at T-0 (it will NOT be prefilled)")
     go.add_argument("--now", help="rehearse against a fixed time")
     go.add_argument("--no-wait", action="store_true", help="do not count down, start the steps now")
 
@@ -269,6 +336,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "setup":
         return _setup_wizard(store)
+
+    if args.command == "prepare":
+        return _prepare_journey(store, args.journey_id, args.copy, args.open)
 
     if args.command == "add-passenger":
         try:
