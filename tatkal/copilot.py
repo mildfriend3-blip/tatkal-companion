@@ -49,24 +49,24 @@ def build_script(journey: dict, payment_mode: str = "WALLET") -> list[Step]:
             "Tap Continue to Payment, choose IRCTC Wallet",
             "wallet is already funded, so no UPI PIN round trip",
         )
-        confirm_step = Step(21, "Confirm the wallet debit", "one tap, no PIN")
+        confirm_step = Step(21, "Review and complete the payment on the official page", "follow the payment provider instructions yourself")
     else:
         pay_step = Step(
             18,
             "Tap Continue to Payment, choose UPI",
             "your UPI app is already open in the background",
         )
-        confirm_step = Step(21, "Enter the UPI PIN and approve", "do not switch apps mid-flow")
+        confirm_step = Step(21, "Review and complete the UPI payment yourself", "never share your UPI PIN")
 
     return [
-        Step(0, "Open the pre-loaded IRCTC tatkal page and tap Book Ticket", route),
-        Step(2, "Confirm From / To / Date from your note, tap Find Trains", "nothing to type, only verify"),
-        Step(6, f"Select the train and {travel_class}, tap Book Now", journey.get("train") or "train already shortlisted"),
-        Step(10, f"Add Passenger, pick from your master list ({count} saved)", "do not type names live"),
-        Step(14, "Set berth preference, tap Continue", "only if it is not already saved"),
+        Step(0, "Open IRCTC and start a Tatkal search", route),
+        Step(2, "Enter From / To / Date from your saved journey, then find trains", "type and verify these details on the official page"),
+        Step(6, f"Find and verify the train, select {travel_class}, then continue", journey.get("train") or "choose your train on the official page"),
+        Step(10, f"Enter and verify passenger details ({count} name(s) in your saved brief)", "your saved list is a reference only; enter details on IRCTC yourself"),
+        Step(14, "Review passenger details and preferences, then continue", "verify every field on the official page"),
         pay_step,
         confirm_step,
-        Step(TARGET_TOTAL_SECONDS, "Ticket is booked, note the PNR, do not refresh", "screen record if you want proof"),
+        Step(TARGET_TOTAL_SECONDS, "Check the official result and note the PNR if booking succeeded", "the tool cannot verify or submit a booking"),
     ]
 
 
